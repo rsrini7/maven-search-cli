@@ -29,15 +29,17 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 )
 
 const (
-	mavenURL string = "http://search.maven.org/solrsearch/select?q="
+	mavenURL string = "http://search.maven.org/solrsearch/select?q=a:"
 )
 
 var (
 	keyword   string
 	buildType string
+	rows      string
 )
 
 type searchResult struct {
@@ -50,8 +52,8 @@ type searchResult struct {
 	} `json:"response"`
 }
 
-func search(keyword, buildType string) error {
-	res, err := http.Get(mavenURL + url.QueryEscape(keyword))
+func search(keyword, buildType string, rows string) error {
+	res, err := http.Get(mavenURL + url.QueryEscape(keyword) + "&start=0&rows=" + rows)
 	if err != nil {
 		return err
 	}
@@ -83,6 +85,7 @@ func search(keyword, buildType string) error {
 func init() {
 	flag.StringVar(&keyword, "keyword", "", "Search keyword")
 	flag.StringVar(&buildType, "type", "gradle", "Build type: gradle, maven, or sbt")
+	flag.StringVar(&rows, "rows", "20", "Number of rows")
 }
 
 func validateArgs() {
@@ -96,6 +99,14 @@ func validateArgs() {
 	if buildType != "gradle" && buildType != "maven" && buildType != "sbt" {
 		errorAndExit("Valid --type option values: [gradle, maven, sbt]")
 	}
+
+	if _, err := strconv.Atoi(rows); err != nil {
+		errorAndExit("Only integer allowed")
+	}
+
+	if res, _ := strconv.Atoi(rows); res <= 0 {
+		errorAndExit("Invalid number of rows.")
+	}
 }
 
 func errorAndExit(msg interface{}) {
@@ -106,7 +117,7 @@ func errorAndExit(msg interface{}) {
 func main() {
 	flag.Parse()
 	validateArgs()
-	err := search(keyword, buildType)
+	err := search(keyword, buildType, rows)
 	if err != nil {
 		errorAndExit(err)
 	}
